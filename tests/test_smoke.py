@@ -70,6 +70,18 @@ class TokwSmokeTests(unittest.TestCase):
         self.assertEqual(len(payload["files"]), 1)
         self.assertTrue(payload["files"][0]["path"].endswith("note.txt"))
 
+    def test_latin1_not_decoded_as_utf16(self):
+        # Regression: even-length latin-1 bytes used to "decode" as UTF-16
+        # into garbage CJK, inflating the estimate. Must decode as latin-1.
+        raw = "café naïve résumé!".encode("latin-1")
+        self.assertEqual(len(raw) % 2, 0)
+        self.write("latin1.txt", raw, binary=True)
+        out = run_tokw("--json", self.dir + "/latin1.txt")
+        self.assertEqual(out.returncode, 0)
+        payload = json.loads(out.stdout)
+        self.assertEqual(payload["files"][0]["chars"], len(raw.decode("latin-1")))
+        self.assertEqual(payload["files"][0]["est_tokens"], 4)
+
     def test_json_output_is_valid(self):
         f = self.write("j.txt", "hello world")
         out = run_tokw("--json", f)

@@ -72,13 +72,14 @@ def read_text(path):
         raw = f.read()
     if b"\x00" in raw:
         return None
-    # Strip a UTF-16 BOM-free decode attempt chain; tolerate stray bytes.
-    for enc in ("utf-8", "utf-16", "latin-1"):
-        try:
-            return raw.decode(enc)
-        except (UnicodeDecodeError, ValueError):
-            continue
-    return raw.decode("utf-8", errors="replace")
+    # No UTF-16 fallback: almost any even-length byte string "successfully"
+    # decodes as UTF-16 into garbage CJK, inflating token estimates for
+    # latin-1 files by ~40%. (Genuine UTF-16 text has null bytes and is
+    # already skipped as binary above.)
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode("latin-1")
 
 
 def collect_files(paths, exts):
